@@ -1,0 +1,194 @@
+/* ===============================
+   Cloud Backup System
+   Common Styles
+================================ */
+
+
+
+/* Login Card */
+
+.login-card{
+    width:400px;
+    border:none;
+    border-radius:15px;
+    box-shadow:0 10px 25px rgba(0,0,0,.15);
+}
+
+/* Card Header */
+
+.card-header{
+    background:#0d6efd;
+    color:white;
+    text-align:center;
+    padding:20px;
+    border-radius:15px 15px 0 0;
+}
+
+/* Buttons */
+
+.btn-primary{
+    border-radius:8px;
+}
+
+/* Dashboard Cards */
+
+.dashboard-card{
+    border-radius:15px;
+    box-shadow:0 5px 15px rgba(0,0,0,.1);
+    transition:.3s;
+}
+
+.dashboard-card:hover{
+    transform:translateY(-5px);
+}
+
+/* Tables */
+
+table{
+    background:white;
+}
+
+/* Navbar */
+
+.navbar-brand{
+    font-weight:bold;
+    font-size:24px;
+}
+
+/* Page Titles */
+
+.page-title{
+    font-weight:bold;
+    color:#0d6efd;
+}
+.dashboard-card{
+
+    border:none;
+    border-radius:15px;
+
+    transition:0.3s;
+
+    cursor:pointer;
+
+    box-shadow:0 5px 15px rgba(0,0,0,.1);
+}
+
+.dashboard-card:hover{
+
+    transform:translateY(-8px);
+
+    box-shadow:0 10px 25px rgba(13,110,253,.3);
+}
+
+.dashboard-card h1{
+
+    font-size:50px;
+}
+
+.dashboard-card h5{
+
+    margin-top:10px;
+
+    color:#333;
+
+    font-weight:bold;
+}
+.table{
+
+    background:white;
+
+    border-radius:15px;
+
+    overflow:hidden;
+
+    box-shadow:0 5px 15px rgba(0,0,0,.08);
+}
+
+.table th{
+
+    text-align:center;
+}
+
+.table td{
+
+    vertical-align:middle;
+}
+
+.badge{
+
+    font-size:14px;
+}
+.card{
+
+    border-radius:15px;
+}
+
+.card-header{
+
+    border-radius:15px 15px 0 0 !important;
+}
+
+.btn{
+
+    border-radius:10px;
+}
+
+.form-control{
+
+    border-radius:10px;
+}
+.card{
+    border:none;
+    border-radius:15px;
+}
+
+.card-header{
+    border-radius:15px 15px 0 0 !important;
+}
+
+.btn{
+    border-radius:10px;
+}
+
+.form-control{
+    border-radius:10px;
+}
+
+.form-label{
+    font-weight:bold;
+}
+.card-header h2{
+
+    font-weight:bold;
+}
+
+.form-control:focus{
+
+    border-color:#ffc107;
+
+    box-shadow:0 0 10px rgba(255,193,7,.4);
+}
+.table{
+
+    border-radius:15px;
+}
+
+.table td{
+
+    vertical-align:middle;
+}
+
+.table th{
+
+    text-align:center;
+}
+
+.btn{
+
+    border-radius:8px;
+}
+
+.card{
+
+    border-radius:18px;
+}
