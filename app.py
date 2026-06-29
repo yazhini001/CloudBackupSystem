@@ -123,7 +123,8 @@ def register():
 
 @app.route('/logout')
 def logout():
-    return render_template('login.html')
+    session.clear()
+    return redirect('/')
 
 from datetime import datetime
 
@@ -165,7 +166,7 @@ def upload():
 
         sql = """
         INSERT INTO backups
-        (user_id, file_name, s3_path, upload_data, file_size, category)
+        (user_id, file_name, cloudinary_url, upload_data, file_size, category)
         VALUES(%s,%s,%s,%s,%s,%s)
         """
 
@@ -196,7 +197,7 @@ def files():
     cursor = db.cursor()
 
     sql = """
-    SELECT id, file_name, s3_path, upload_data, file_size, category
+    SELECT id, file_name, cloudinary_url, upload_data, file_size, category
     FROM backups
     WHERE user_id=%s
     AND file_name LIKE %s
