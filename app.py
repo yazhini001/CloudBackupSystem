@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 from flask import Flask, render_template, request, session, redirect
+
+from datetime import datetime
+
 import pymysql
 import cloudinary
 import cloudinary.uploader
@@ -15,13 +19,6 @@ cloudinary.config(
     api_secret=os.getenv("CLOUDINARY_API_SECRET")
 )
 
-db = pymysql.connect(
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT")),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME")
-)
 def get_db():
     return pymysql.connect(
         host=os.getenv("DB_HOST"),
@@ -40,71 +37,31 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        db = get_db()
         cursor = db.cursor()
 
-        sql = """
-        SELECT * FROM users
-        WHERE username=%s AND password=%s
-        """
+        try:
 
-        cursor.execute(sql, (username, password))
+            sql = """
+            SELECT * FROM users
+            WHERE username=%s AND password=%s
+            """
 
-        user = cursor.fetchone()
+            cursor.execute(sql, (username, password))
+            user = cursor.fetchone()
 
-        print("Username:", username)
-        print("Password:", password)
-        print("User found:", user)
+            if user:
 
-        if user:
+                session['user_id'] = user[0]
+                session['username'] = user[1]
 
-            session['user_id'] = user[0]
-            session['username'] = user[1]
-
-            # Total Files Uploaded
-            cursor.execute(
-                "SELECT COUNT(*) FROM backups WHERE user_id=%s",
-                (user[0],)
-            )
-
-            file_count = cursor.fetchone()[0]
-
-            # Total Storage Used
-            cursor.execute(
-                "SELECT file_size FROM backups WHERE user_id=%s",
-                (user[0],)
-            )
-
-            sizes = cursor.fetchall()
-
-            total_size = 0
-
-            for size in sizes:
-
-                if size[0]:
-
-                    total_size += float(
-                        size[0].replace(" KB", "")
-                    )
-
-            # Recent Uploads
-            cursor.execute(
-                """
-                SELECT file_name
-                FROM backups
-                WHERE user_id=%s
-                ORDER BY id DESC
-                LIMIT 5
-                """,
-                (user[0],)
-            )
-
-            recent_files = cursor.fetchall()
-
-            return redirect('/dashboard')
-
-        else:
+                return redirect('/dashboard')
 
             return "Invalid Username or Password!"
+
+        finally:
+            cursor.close()
+            db.close()
 
     return render_template('login.html')
 
@@ -117,17 +74,23 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
+        db = get_db()
         cursor = db.cursor()
 
-        sql = """
-        INSERT INTO users(username,email,password)
-        VALUES(%s,%s,%s)
-        """
+        try:
 
-        cursor.execute(sql, (username, email, password))
-        db.commit()
+            sql = """
+            INSERT INTO users(username,email,password)
+            VALUES(%s,%s,%s)
+            """
 
-        return "User Registered Successfully!"
+            cursor.execute(sql, (username, email, password))
+
+            return "User Registered Successfully!"
+
+        finally:
+            cursor.close()
+            db.close()
 
     return render_template('register.html')
 
@@ -136,119 +99,195 @@ def logout():
     session.clear()
     return redirect('/')
 
-from datetime import datetime
+@app.route('/dashboard')
+def dashboard():
 
+    if 'user_id' not in session:
+        return redirect('/')
+
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+
+        cursor.execute(
+            "SELECT COUNT(*) FROM backups WHERE user_id=%s",
+            (session['user_id'],)
+        )
+
+        file_count = cursor.fetchone()[0]
+
+        cursor.execute(
+            "SELECT file_size FROM backups WHERE user_id=%s",
+            (session['user_id'],)
+        )
+
+        sizes = cursor.fetchall()
+
+        total_size = 0
+
+        for size in sizes:
+            if size[0]:
+                total_size += float(size[0].replace(" KB", ""))
+
+        cursor.execute(
+            """
+            SELECT file_name
+            FROM backups
+            WHERE user_id=%s
+            ORDER BY id DESC
+            LIMIT 5
+            """,
+            (session['user_id'],)
+        )
+
+        recent_files = cursor.fetchall()
+
+        return render_template(
+            'dashboard.html',
+            username=session['username'],
+            file_count=file_count,
+            total_size=round(total_size, 2),
+            recent_files=recent_files
+        )
+
+    finally:
+        cursor.close()
+        db.close()
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
 
+    # Check if user is logged in
+    if 'user_id' not in session:
+        return redirect('/')
 
- if request.method == 'POST':
+    if request.method == 'POST':
 
-    file = request.files['file']
+        file = request.files.get('file')
 
-    if file:
+        if not file or file.filename == "":
+            return "Please select a file."
 
-        result = cloudinary.uploader.upload(file)
+        try:
+            # Upload file to Cloudinary
+            result = cloudinary.uploader.upload(file)
 
-        file_url = result["secure_url"]
-        filename = file.filename
+            file_url = result["secure_url"]
+            filename = file.filename
 
-        # Category Detection
-        extension = filename.split('.')[-1].lower()
+            # Detect file category
+            extension = filename.split('.')[-1].lower()
 
-        if extension in ['jpg', 'jpeg', 'png', 'gif']:
-            category = 'IMAGE'
+            if extension in ['jpg', 'jpeg', 'png', 'gif']:
+                category = "IMAGE"
+            elif extension == "pdf":
+                category = "PDF"
+            elif extension in ['doc', 'docx', 'txt']:
+                category = "DOCUMENT"
+            else:
+                category = "OTHER"
 
-        elif extension == 'pdf':
-            category = 'PDF'
+            # File size in KB
+            file_size = round(result.get("bytes", 0) / 1024, 2)
 
-        elif extension in ['doc', 'docx', 'txt']:
-            category = 'DOCUMENT'
+            db = get_db()
+            cursor = db.cursor()
 
-        else:
-            category = 'OTHER'
+            try:
+                sql = """
+                INSERT INTO backups
+                (user_id, file_name, cloudinary_url, upload_data, file_size, category)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """
 
-        file_size = result.get("bytes", 0) / 1024
-        file_size = round(file_size, 2)
+                cursor.execute(
+                    sql,
+                    (
+                        session['user_id'],
+                        filename,
+                        file_url,
+                        datetime.now(),
+                        f"{file_size} KB",
+                        category
+                    )
+                )
 
-        cursor = db.cursor()
+                return redirect('/files')
 
-        sql = """
-        INSERT INTO backups
-        (user_id, file_name, cloudinary_url, upload_data, file_size, category)
-        VALUES(%s,%s,%s,%s,%s,%s)
-        """
+            finally:
+                cursor.close()
+                db.close()
 
-        cursor.execute(
-            sql,
-            (
-                session['user_id'],
-                filename,
-                file_url,
-                datetime.now(),
-                str(file_size) + " KB",
-                category
-            )
-        )
+        except Exception as e:
+            return f"Upload Error: {e}"
 
-        db.commit()
-
-        return "File Uploaded Successfully to Cloudinary!"
-
- return render_template('upload.html')
-
+    return render_template('upload.html')
 
 @app.route('/files')
 def files():
 
     search = request.args.get('search', '')
 
+    db = get_db()
     cursor = db.cursor()
 
-    sql = """
-    SELECT id, file_name, cloudinary_url, upload_data, file_size, category
-    FROM backups
-    WHERE user_id=%s
-    AND file_name LIKE %s
-    """
+    try:
 
-    cursor.execute(
-        sql,
-        (
-            session['user_id'],
-            '%' + search + '%'
+        sql = """
+        SELECT id,file_name,cloudinary_url,upload_data,file_size,category
+        FROM backups
+        WHERE user_id=%s
+        AND file_name LIKE %s
+        """
+
+        cursor.execute(
+            sql,
+            (
+                session['user_id'],
+                '%' + search + '%'
+            )
         )
-    )
 
-    files = cursor.fetchall()
+        files = cursor.fetchall()
 
-    return render_template(
-        'files.html',
-        files=files,
-        search=search
-    )
+        return render_template(
+            'files.html',
+            files=files,
+            search=search
+        )
 
+    finally:
+        cursor.close()
+        db.close()
 
 @app.route('/delete/<int:file_id>')
 def delete_file(file_id):
 
+    db = get_db()
     cursor = db.cursor()
 
-    sql = """
-    UPDATE backups
-    SET is_deleted=1
-    WHERE id=%s
-    """
+    try:
 
-    cursor.execute(sql, (file_id,))
-    db.commit()
+        cursor.execute(
+            """
+            UPDATE backups
+            SET is_deleted=1
+            WHERE id=%s
+            """,
+            (file_id,)
+        )
 
-    return "File Moved To Recycle Bin!"
+        return "File Moved To Recycle Bin!"
+
+    finally:
+        cursor.close()
+        db.close()
 
 @app.route('/recycle_bin')
 def recycle_bin():
 
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -268,9 +307,11 @@ def recycle_bin():
         files=files
     )
 
+
 @app.route('/restore/<int:file_id>')
 def restore_file(file_id):
 
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -286,12 +327,14 @@ def restore_file(file_id):
 
     return "File Restored Successfully!"
 
+
 @app.route('/profile')
 def profile():
 
     if 'user_id' not in session:
         return redirect('/')
 
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -319,6 +362,7 @@ def change_password():
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
 
+        db = get_db()
         cursor = db.cursor()
 
         cursor.execute(
@@ -356,6 +400,7 @@ def change_password():
 @app.route('/favorite/<int:file_id>')
 def favorite_file(file_id):
 
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -374,6 +419,7 @@ def favorite_file(file_id):
 @app.route('/favorites')
 def favorites():
 
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -393,52 +439,6 @@ def favorites():
         files=files
     )
 
-@app.route('/dashboard')
-def dashboard():
-
-    if 'user_id' not in session:
-     return redirect('/')
-
-    cursor = db.cursor()
-
-    cursor.execute(
-    "SELECT COUNT(*) FROM backups WHERE user_id=%s",
-    (session['user_id'],)
-)
-    file_count = cursor.fetchone()[0]
-
-    cursor.execute(
-    "SELECT file_size FROM backups WHERE user_id=%s",
-    (session['user_id'],)
-)
-    sizes = cursor.fetchall()
-
-    total_size = 0
-
-    for size in sizes:
-     if size[0]:
-        total_size += float(size[0].replace(" KB", ""))
-
-    cursor.execute(
-    """
-    SELECT file_name
-    FROM backups
-    WHERE user_id=%s
-    ORDER BY id DESC
-    LIMIT 5
-    """,
-    (session['user_id'],)
-)
-
-    recent_files = cursor.fetchall()
-
-    return render_template(
-    'dashboard.html',
-    username=session['username'],
-    file_count=file_count,
-    total_size=round(total_size, 2),
-    recent_files=recent_files
-)
 
 if __name__ == '__main__':
     app.run(debug=True)
