@@ -173,10 +173,13 @@ def upload():
             # Upload file to Cloudinary
             result = cloudinary.uploader.upload(
     file,
-    resource_type="auto",
-    type="upload",
-    access_mode="public"
+    resource_type="raw"
+
+    print(result)
+    print(result["secure_url"])
 )
+
+
 
             file_url = result["secure_url"]
             filename = file.filename
