@@ -155,11 +155,19 @@ def dashboard():
         cursor.close()
         db.close()
 
-@app.route('/upload', methods=['GET', 'POST']) #  Allows both viewing and uploading
+@app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
+    # If a user is not logged in, send them to the login page
+    if 'user_id' not in session:
+        return redirect('/')
+
     if request.method == 'POST':
         upload_result = None
         file_url = None
+        
+        # Connect to your database
+        db = get_db()
+        cursor = db.cursor()
         
         try:
             if 'file' not in request.files:
@@ -170,7 +178,7 @@ def upload_file():
                 return "No selected file", 400
 
             if file:
-                # Force resource_type='raw' for PDFs
+                # 1. Force Cloudinary to treat PDFs correctly
                 upload_result = cloudinary.uploader.upload(
                     file,
                     resource_type="raw" 
@@ -178,17 +186,27 @@ def upload_file():
                 
                 file_url = upload_result.get('secure_url')
                 
-                # Your MySQL database insertion code goes here
-                # cursor.execute("INSERT INTO ... VALUES (%s)", (file_url,))
+                # 2. Insert file data linked to the logged-in user
+                cursor.execute(
+                    "INSERT INTO backups (user_id, file_name, file_url) VALUES (%s, %s, %s)",
+                    (session['user_id'], file.filename, file_url)
+                )
                 
-                return "Upload successful!", 200
+                # 🌟 CRITICAL FIX 1: Save changes to MySQL permanently
+                db.commit()
+                
+                # 🌟 CRITICAL FIX 2: Send user straight back to dashboard
+                return redirect(url_for('dashboard'))
 
         except Exception as e:
             print(f"Error during upload: {e}")
             return f"Internal Server Error: {str(e)}", 500
+            
+        finally:
+            cursor.close()
+            db.close()
 
-    # ⬇️ THIS IS WHAT LOADS THE PAGE WHeN YOU JUST VISIT THE URL
-    # Replace 'upload.html' with whatever your HTML file is named
+    # If it's a GET request, just display your upload HTML page
     return render_template('upload.html')
 
 @app.route('/files')
