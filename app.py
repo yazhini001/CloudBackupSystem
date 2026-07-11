@@ -173,13 +173,15 @@ def upload():
             # Upload file to Cloudinary
             result = cloudinary.uploader.upload(
     file,
-    resource_type="raw"
-
-    print(result)
-    print(result["secure_url"])
+    resource_type="auto",
+    use_filename=True,
+    unique_filename=False
 )
 
-
+            print(result)
+            print(result["resource_type"])
+            print(result["format"])
+            print(result["secure_url"])
 
             file_url = result["secure_url"]
             filename = file.filename
@@ -221,14 +223,24 @@ def upload():
                     )
                 )
 
-                return redirect('/files')
+                return f"""
+Inserted Successfully!<br><br>
+Filename: {filename}<br>
+URL: {file_url}
+"""
 
             finally:
                 cursor.close()
                 db.close()
 
         except Exception as e:
-            return f"Upload Error: {e}"
+            import traceback
+
+    print("=" * 50)
+    traceback.print_exc()
+    print("=" * 50)
+
+    return str(e)
 
     return render_template('upload.html')
 
