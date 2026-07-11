@@ -232,7 +232,7 @@ def upload():
         except Exception as e:
         
 
-    return str(e)
+         return str(e)
 
     return render_template('upload.html')
 
