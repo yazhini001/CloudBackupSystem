@@ -230,11 +230,7 @@ def upload():
                 db.close()
 
         except Exception as e:
-            import traceback
-
-    print("=" * 50)
-    traceback.print_exc()
-    print("=" * 50)
+        
 
     return str(e)
 
