@@ -155,86 +155,40 @@ def dashboard():
         cursor.close()
         db.close()
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-
-    # Check if user is logged in
-    if 'user_id' not in session:
-        return redirect('/')
-
-    if request.method == 'POST':
-
-        file = request.files.get('file')
-
-        if not file or file.filename == "":
-            return "Please select a file."
-
-        try:
-            # Upload file to Cloudinary
-            result = cloudinary.uploader.upload(
-    file,
-    resource_type="auto",
-    use_filename=True,
-    unique_filename=False
-)
-
-            print(result)
-            print(result["resource_type"])
-            print(result["format"])
-            print(result["secure_url"])
-
-            file_url = result["secure_url"]
-            filename = file.filename
-
-            # Detect file category
-            extension = filename.split('.')[-1].lower()
-
-            if extension in ['jpg', 'jpeg', 'png', 'gif']:
-                category = "IMAGE"
-            elif extension == "pdf":
-                category = "PDF"
-            elif extension in ['doc', 'docx', 'txt']:
-                category = "DOCUMENT"
-            else:
-                category = "OTHER"
-
-            # File size in KB
-            file_size = round(result.get("bytes", 0) / 1024, 2)
-
-            db = get_db()
-            cursor = db.cursor()
-
-            try:
-                sql = """
-                INSERT INTO backups
-                (user_id, file_name, cloudinary_url, upload_data, file_size, category)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """
-
-                cursor.execute(
-                    sql,
-                    (
-                        session['user_id'],
-                        filename,
-                        file_url,
-                        datetime.now(),
-                        f"{file_size} KB",
-                        category
-                    )
-                )
-
-                return redirect('/files')
-
-            finally:
-                cursor.close()
-                db.close()
-
-        except Exception as e:
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    # 1. Initialize variables early to avoid UnboundLocalError
+    upload_result = None
+    file_url = None
+    
+    try:
+        # 2. Get the file from the request
+        if 'file' not in request.files:
+            return "No file part", 400
         
+        file = request.files['file']
+        if file.filename == '':
+            return "No selected file", 400
 
-         return str(e)
+        if file:
+            # 3. CRITICAL: Force resource_type='raw' for PDFs
+            upload_result = cloudinary.uploader.upload(
+                file,
+                resource_type="raw" 
+            )
+            
+            # 4. Extract the correct secure URL
+            file_url = upload_result.get('secure_url')
+            
+            # 5. Insert into MySQL Database here
+            # cursor.execute("INSERT INTO ... VALUES (%s)", (file_url,))
+            
+            return "Upload successful!", 200
 
-    return render_template('upload.html')
+    except Exception as e:
+        # Clean logging, no messy raw strings returned to user
+        print(f"Error during upload: {e}")
+        return f"Internal Server Error: {str(e)}", 500
 
 @app.route('/files')
 def files():
@@ -459,7 +413,10 @@ def check_env():
         "DB_NAME": os.getenv("DB_NAME"),
         "DB_USER": os.getenv("DB_USER"),
         "DB_PASSWORD_EXISTS": os.getenv("DB_PASSWORD") is not None,
-        "DB_PASSWORD_LENGTH": len(os.getenv("DB_PASSWORD") or "")
+
+        "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
+        "API_KEY_EXISTS": os.getenv("CLOUDINARY_API_KEY") is not None,
+        "API_SECRET_EXISTS": os.getenv("CLOUDINARY_API_SECRET") is not None
     }
 
 if __name__ == '__main__':
