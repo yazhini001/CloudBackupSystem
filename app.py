@@ -270,6 +270,8 @@ AND file_name LIKE %s
         cursor.close()
         db.close()
 
+from cloudinary.utils import cloudinary_url
+
 @app.route('/download/<int:file_id>')
 def download(file_id):
 
@@ -277,7 +279,7 @@ def download(file_id):
     cursor = db.cursor()
 
     cursor.execute("""
-        SELECT cloudinary_url
+        SELECT public_id, file_name
         FROM backups
         WHERE id=%s
     """, (file_id,))
@@ -290,7 +292,16 @@ def download(file_id):
     if not file:
         return "File not found"
 
-    return redirect(file[0])
+    public_id = file[0]
+    filename = file[1]
+
+    url, options = cloudinary_url(
+        public_id,
+        resource_type="raw",
+        flags="attachment"
+    )
+
+    return redirect(url)
 
 @app.route('/delete/<int:file_id>')
 def delete_file(file_id):
