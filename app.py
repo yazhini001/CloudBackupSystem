@@ -179,6 +179,7 @@ def upload():
             )
 
             file_url = result["secure_url"]
+            public_id = result["public_id"]
             filename = file.filename
 
             # Detect file category
@@ -202,22 +203,23 @@ def upload():
             try:
 
                 sql = """
-                INSERT INTO backups
-                (user_id, file_name, cloudinary_url, upload_data, file_size, category)
-                VALUES (%s,%s,%s,%s,%s,%s)
-                """
+INSERT INTO backups
+(user_id, file_name, cloudinary_url, public_id, upload_data, file_size, category)
+VALUES (%s,%s,%s,%s,%s,%s,%s)
+"""
 
                 cursor.execute(
-                    sql,
-                    (
-                        session['user_id'],
-                        filename,
-                        file_url,
-                        datetime.now(),
-                        f"{file_size} KB",
-                        category
-                    )
-                )
+    sql,
+    (
+        session['user_id'],
+        filename,
+        file_url,
+        public_id,
+        datetime.now(),
+        f"{file_size} KB",
+        category
+    )
+)
 
                 return redirect('/files')
 
