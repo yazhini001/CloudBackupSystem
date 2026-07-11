@@ -157,57 +157,76 @@ def dashboard():
         db.close()
 
 @app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    # If a user is not logged in, send them to the login page
+def upload():
+
     if 'user_id' not in session:
         return redirect('/')
 
     if request.method == 'POST':
-        upload_result = None
-        file_url = None
-        
-        # Connect to your database
-        db = get_db()
-        cursor = db.cursor()
-        
-        try:
-            if 'file' not in request.files:
-                return "No file part", 400
-            
-            file = request.files['file']
-            if file.filename == '':
-                return "No selected file", 400
 
-            if file:
-                # 1. Force Cloudinary to treat PDFs correctly
-                upload_result = cloudinary.uploader.upload(
-                    file,
-                    resource_type="raw" 
-                )
-                
-                file_url = upload_result.get('secure_url')
-                
-                # 2. Insert file data linked to the logged-in user
+        file = request.files.get('file')
+
+        if not file or file.filename == "":
+            return "Please select a file."
+
+        try:
+
+            # Upload file to Cloudinary
+            result = cloudinary.uploader.upload(
+                file,
+                resource_type="raw"
+            )
+
+            file_url = result["secure_url"]
+            filename = file.filename
+
+            # Detect file category
+            extension = filename.split('.')[-1].lower()
+
+            if extension in ['jpg', 'jpeg', 'png', 'gif']:
+                category = "IMAGE"
+            elif extension == "pdf":
+                category = "PDF"
+            elif extension in ['doc', 'docx', 'txt']:
+                category = "DOCUMENT"
+            else:
+                category = "OTHER"
+
+            # File size
+            file_size = round(result.get("bytes", 0) / 1024, 2)
+
+            db = get_db()
+            cursor = db.cursor()
+
+            try:
+
+                sql = """
+                INSERT INTO backups
+                (user_id, file_name, cloudinary_url, upload_data, file_size, category)
+                VALUES (%s,%s,%s,%s,%s,%s)
+                """
+
                 cursor.execute(
-                    "INSERT INTO backups (user_id, file_name, file_url) VALUES (%s, %s, %s)",
-                    (session['user_id'], file.filename, file_url)
+                    sql,
+                    (
+                        session['user_id'],
+                        filename,
+                        file_url,
+                        datetime.now(),
+                        f"{file_size} KB",
+                        category
+                    )
                 )
-                
-                # 🌟 CRITICAL FIX 1: Save changes to MySQL permanently
-                db.commit()
-                
-                # 🌟 CRITICAL FIX 2: Send user straight back to dashboard
-                return redirect(url_for('dashboard'))
+
+                return redirect('/files')
+
+            finally:
+                cursor.close()
+                db.close()
 
         except Exception as e:
-            print(f"Error during upload: {e}")
-            return f"Internal Server Error: {str(e)}", 500
-            
-        finally:
-            cursor.close()
-            db.close()
+            return f"Upload Error: {e}"
 
-    # If it's a GET request, just display your upload HTML page
     return render_template('upload.html')
 
 @app.route('/files')
