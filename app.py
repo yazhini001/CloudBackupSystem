@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, send_file
+
 
 from datetime import datetime
 
@@ -240,11 +241,12 @@ def files():
     try:
 
         sql = """
-        SELECT id,file_name,cloudinary_url,upload_data,file_size,category
-        FROM backups
-        WHERE user_id=%s
-        AND file_name LIKE %s
-        """
+SELECT id,file_name,cloudinary_url,upload_data,file_size,category
+FROM backups
+WHERE user_id=%s
+AND is_deleted=0
+AND file_name LIKE %s
+"""
 
         cursor.execute(
             sql,
@@ -266,6 +268,28 @@ def files():
         cursor.close()
         db.close()
 
+@app.route('/download/<int:file_id>')
+def download(file_id):
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        SELECT cloudinary_url
+        FROM backups
+        WHERE id=%s
+    """, (file_id,))
+
+    file = cursor.fetchone()
+
+    cursor.close()
+    db.close()
+
+    if not file:
+        return "File not found"
+
+    return redirect(file[0])
+
 @app.route('/delete/<int:file_id>')
 def delete_file(file_id):
 
@@ -276,14 +300,13 @@ def delete_file(file_id):
 
         cursor.execute(
             """
-            UPDATE backups
-            SET is_deleted=1
+            DELETE FROM backups
             WHERE id=%s
             """,
             (file_id,)
         )
 
-        return "File Moved To Recycle Bin!"
+        return redirect('/files')
 
     finally:
         cursor.close()
