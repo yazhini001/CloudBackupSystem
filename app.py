@@ -155,40 +155,41 @@ def dashboard():
         cursor.close()
         db.close()
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST']) #  Allows both viewing and uploading
 def upload_file():
-    # 1. Initialize variables early to avoid UnboundLocalError
-    upload_result = None
-    file_url = None
-    
-    try:
-        # 2. Get the file from the request
-        if 'file' not in request.files:
-            return "No file part", 400
+    if request.method == 'POST':
+        upload_result = None
+        file_url = None
         
-        file = request.files['file']
-        if file.filename == '':
-            return "No selected file", 400
+        try:
+            if 'file' not in request.files:
+                return "No file part", 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return "No selected file", 400
 
-        if file:
-            # 3. CRITICAL: Force resource_type='raw' for PDFs
-            upload_result = cloudinary.uploader.upload(
-                file,
-                resource_type="raw" 
-            )
-            
-            # 4. Extract the correct secure URL
-            file_url = upload_result.get('secure_url')
-            
-            # 5. Insert into MySQL Database here
-            # cursor.execute("INSERT INTO ... VALUES (%s)", (file_url,))
-            
-            return "Upload successful!", 200
+            if file:
+                # Force resource_type='raw' for PDFs
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    resource_type="raw" 
+                )
+                
+                file_url = upload_result.get('secure_url')
+                
+                # Your MySQL database insertion code goes here
+                # cursor.execute("INSERT INTO ... VALUES (%s)", (file_url,))
+                
+                return "Upload successful!", 200
 
-    except Exception as e:
-        # Clean logging, no messy raw strings returned to user
-        print(f"Error during upload: {e}")
-        return f"Internal Server Error: {str(e)}", 500
+        except Exception as e:
+            print(f"Error during upload: {e}")
+            return f"Internal Server Error: {str(e)}", 500
+
+    # ⬇️ THIS IS WHAT LOADS THE PAGE WHeN YOU JUST VISIT THE URL
+    # Replace 'upload.html' with whatever your HTML file is named
+    return render_template('upload.html')
 
 @app.route('/files')
 def files():
