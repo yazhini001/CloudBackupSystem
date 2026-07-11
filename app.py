@@ -223,11 +223,7 @@ def upload():
                     )
                 )
 
-                return f"""
-Inserted Successfully!<br><br>
-Filename: {filename}<br>
-URL: {file_url}
-"""
+                return redirect('/files')
 
             finally:
                 cursor.close()
