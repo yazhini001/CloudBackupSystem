@@ -96,29 +96,17 @@
                 <td>
 
                     <!-- View -->
-                    <a href="{{ file[2] }}"
-                       target="_blank"
-                       class="btn btn-primary btn-sm mb-1">
-                        👁 View
-                    </a>
+                    <a href="/view/{{ file[0] }}" target="_blank" class="btn btn-view">View</a>
 
                     <!-- Download -->
 
-                    <a href="/download/{{ file[0] }}"
-                       class="btn btn-success btn-sm mb-1">
-                        ⬇ Download
-
-                    </a>
+                    <a href="/download/{{ file[0] }}" class="btn btn-download">Download</a>
 
                     <!-- Share -->
 
-                    <a href="{{ file[2] }}"
-                       target="_blank"
-                       class="btn btn-info btn-sm mb-1">
-
-                        🔗 Share
-
-                    </a>
+                    <button onclick="navigator.clipboard.writeText('{{ file[2] }}'); alert('Link copied to clipboard!');" class="btn btn-share">
+    Share
+</button>
 
                     <!-- Favorite -->
 
