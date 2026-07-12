@@ -87,6 +87,7 @@ def logout():
 
 @app.route('/dashboard')
 def dashboard():
+
     if 'user_id' not in session:
         return redirect('/')
 
@@ -94,46 +95,51 @@ def dashboard():
     cursor = db.cursor()
 
     try:
-        # 1. Total Files Count
+
+        # Total Files
         cursor.execute("""
             SELECT COUNT(*)
             FROM backups
             WHERE user_id=%s
             AND is_deleted=0
         """, (session['user_id'],))
+
         file_count = cursor.fetchone()[0]
 
-        # 2. Storage Used Calculation (Safe & Robust)
+        # Storage Used
         cursor.execute("""
             SELECT file_size
             FROM backups
             WHERE user_id=%s
             AND is_deleted=0
         """, (session['user_id'],))
+
         sizes = cursor.fetchall()
 
         total_size = 0.0
-        for size in sizes:
-            if size[0]:  # Ensure the value is not None or empty
+
+        for row in sizes:
+            if row[0]:
                 try:
-                    # Clean up the string: remove "KB", spaces, and convert to string safely
-                    clean_size = str(size[0]).upper().replace("KB", "").strip()
-                    total_size += float(clean_size)
+                    size = str(row[0]).replace("KB", "").replace(" ", "").strip()
+                    total_size += float(size)
                 except ValueError:
-                    # If conversion fails (e.g., if it's a broken format), skip it safely
                     continue
 
-        # 3. Favorite Files Count
+        total_size = round(total_size, 2)
+
+        # Favorite Files Count
         cursor.execute("""
-            SELECT COUNT(*) 
-            FROM backups 
-            WHERE user_id=%s 
-            AND is_favorite = 1 
-            AND is_deleted = 0
+            SELECT COUNT(*)
+            FROM backups
+            WHERE user_id=%s
+            AND is_favorite=1
+            AND is_deleted=0
         """, (session['user_id'],))
+
         favorite_count = cursor.fetchone()[0]
 
-        # 4. Recent Uploads List
+        # Recent Uploads
         cursor.execute("""
             SELECT file_name
             FROM backups
@@ -142,21 +148,22 @@ def dashboard():
             ORDER BY id DESC
             LIMIT 5
         """, (session['user_id'],))
+
         recent_files = cursor.fetchall()
 
-        # Debug logs to your Render console terminal
-        print("--- DASHBOARD SYSTEM LOGS ---")
-        print(f"User ID: {session['user_id']}")
-        print(f"Raw Database Sizes Fetched: {sizes}")
-        print(f"Calculated Total Size: {total_size} KB")
-        print(f"Favorites Found: {favorite_count}")
-        print("----------------------------")
+        # Debug Logs
+        print("----------- DASHBOARD -----------")
+        print("User ID:", session['user_id'])
+        print("Total Files:", file_count)
+        print("Storage Used:", total_size, "KB")
+        print("Favorite Files:", favorite_count)
+        print("---------------------------------")
 
         return render_template(
             "dashboard.html",
             username=session["username"],
             file_count=file_count,
-            total_size=round(total_size, 2),
+            total_size=total_size,
             favorite_count=favorite_count,
             recent_files=recent_files
         )
@@ -164,6 +171,7 @@ def dashboard():
     finally:
         cursor.close()
         db.close()
+        
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
     if 'user_id' not in session:
