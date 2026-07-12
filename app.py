@@ -124,6 +124,19 @@ def dashboard():
             (session['user_id'],)
         )
 
+        cursor.execute(
+    """
+    SELECT COUNT(*)
+    FROM backups
+    WHERE user_id=%s
+    AND is_favorite=1
+    AND is_deleted=0
+    """,
+    (session['user_id'],)
+)
+
+        favorite_count = cursor.fetchone()[0]
+
         sizes = cursor.fetchall()
 
         total_size = 0
@@ -146,12 +159,13 @@ def dashboard():
         recent_files = cursor.fetchall()
 
         return render_template(
-            'dashboard.html',
-            username=session['username'],
-            file_count=file_count,
-            total_size=round(total_size, 2),
-            recent_files=recent_files
-        )
+    "dashboard.html",
+    username=session["username"],
+    file_count=file_count,
+    total_size=round(total_size, 2),
+    favorite_count=favorite_count,
+    recent_files=recent_files
+)
 
     finally:
         cursor.close()
