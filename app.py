@@ -277,26 +277,33 @@ def view_file(file_id):
     return redirect(file[0])
 
 @app.route('/download/<int:file_id>')
-def download_file():
+def download_file(file_id):
 
     db = get_db()
     cursor = db.cursor()
 
-    cursor.execute("""
-        SELECT cloudinary_url
-        FROM backups
-        WHERE id=%s
-    """, (file_id,))
+    try:
+        cursor.execute("""
+            SELECT cloudinary_url
+            FROM backups
+            WHERE id=%s
+        """, (file_id,))
 
-    file = cursor.fetchone()
+        file = cursor.fetchone()
 
-    cursor.close()
-    db.close()
+        if not file:
+            return "File not found"
 
-    if not file:
-        return "File not found"
+        print("Download URL:", file[0])
 
-    return redirect(file[0])
+        return redirect(file[0])
+
+    except Exception as e:
+        return f"<pre>{e}</pre>"
+
+    finally:
+        cursor.close()
+        db.close()
 @app.route('/recycle_bin')
 def recycle_bin():
     if 'user_id' not in session:
