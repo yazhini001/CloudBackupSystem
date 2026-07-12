@@ -277,30 +277,26 @@ def view_file(file_id):
     return redirect(file[0])
 
 @app.route('/download/<int:file_id>')
-def download_file(file_id):
+def download_file():
+
     db = get_db()
     cursor = db.cursor()
+
     cursor.execute("""
-        SELECT public_id 
-        FROM backups 
+        SELECT cloudinary_url
+        FROM backups
         WHERE id=%s
     """, (file_id,))
+
     file = cursor.fetchone()
+
     cursor.close()
     db.close()
 
-    if not file or not file[0]:
+    if not file:
         return "File not found"
 
-    public_id = file[0]
-    # Adding flags="attachment" instructs the browser to force-download the file
-    url, options = cloudinary_url(
-        public_id,
-        resource_type="raw",
-        flags="attachment"
-    )
-    return redirect(url)
-
+    return redirect(file[0])
 @app.route('/recycle_bin')
 def recycle_bin():
     if 'user_id' not in session:
