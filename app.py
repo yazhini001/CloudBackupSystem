@@ -303,28 +303,6 @@ def download(file_id):
 
     return redirect(url)
 
-@app.route('/delete/<int:file_id>')
-def delete_file(file_id):
-
-    db = get_db()
-    cursor = db.cursor()
-
-    try:
-
-        cursor.execute(
-            """
-            DELETE FROM backups
-            WHERE id=%s
-            """,
-            (file_id,)
-        )
-
-        return redirect('/files')
-
-    finally:
-        cursor.close()
-        db.close()
-
 @app.route('/recycle_bin')
 def recycle_bin():
 
@@ -348,7 +326,6 @@ def recycle_bin():
         files=files
     )
 
-
 @app.route('/restore/<int:file_id>')
 def restore_file(file_id):
 
@@ -368,6 +345,27 @@ def restore_file(file_id):
 
     return "File Restored Successfully!"
 
+@app.route('/delete_forever/<int:file_id>')
+def delete_forever(file_id):
+
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            DELETE FROM backups
+            WHERE id=%s
+            """,
+            (file_id,)
+        )
+
+        return redirect('/recycle_bin')
+
+    finally:
+        cursor.close()
+        db.close()
 
 @app.route('/profile')
 def profile():
@@ -493,6 +491,28 @@ def check_env():
         "API_KEY_EXISTS": os.getenv("CLOUDINARY_API_KEY") is not None,
         "API_SECRET_EXISTS": os.getenv("CLOUDINARY_API_SECRET") is not None
     }
+@app.route('/delete/<int:file_id>')
+def delete_file(file_id):
+
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+
+        cursor.execute(
+            """
+            DELETE FROM backups
+            WHERE id=%s
+            """,
+            (file_id,)
+        )
+
+        return redirect('/files')
+
+    finally:
+        cursor.close()
+        db.close()
+
 
 if __name__ == '__main__':
     app.run(debug=True)
